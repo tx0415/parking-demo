@@ -1,0 +1,1143 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>支付宝停车助手 - 车机高保真交互</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --alipay: #1677ff;
+  --alipay-deep: #0b5bd3;
+  --ink: #1f2933;
+  --muted: #7b8491;
+  --gold: #f1d6a1;
+  --notice-surface: rgba(255, 255, 255, 0.92);
+  --notice-tint: rgba(232, 246, 255, 0.88);
+  --notice-stroke: rgba(109, 178, 255, 0.34);
+  --notice-shadow: 0 24px 64px rgba(13, 36, 65, 0.26), 0 0 0 1px rgba(255, 255, 255, 0.46) inset;
+}
+
+body {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: #101113;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+  color: var(--ink);
+}
+
+button {
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.prototype-shell {
+  display: grid;
+  gap: 16px;
+  justify-items: center;
+}
+
+.screen {
+  width: 960px;
+  height: 540px;
+  position: relative;
+  overflow: hidden;
+  border-radius: 20px;
+  background: #111;
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.48);
+  transform: scale(0.9);
+  transform-origin: center;
+}
+
+.screen-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.screen-state-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 260ms ease;
+}
+
+.screen-state-bg.active {
+  opacity: 1;
+}
+
+.content {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+}
+
+.scene-chip {
+  position: absolute;
+  display: none;
+  top: 46px;
+  right: 26px;
+  z-index: 60;
+  min-width: 126px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 14px;
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.82);
+  color: #415066;
+  font-size: 11px;
+  font-weight: 600;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(12px);
+}
+
+.timeline {
+  position: absolute;
+  display: none;
+  top: 48px;
+  left: 26px;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 20px;
+  background: rgba(20, 24, 30, 0.42);
+  backdrop-filter: blur(14px);
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.5);
+  transition: width 220ms ease, background 220ms ease;
+}
+
+.dot.active {
+  width: 22px;
+  background: var(--alipay);
+}
+
+.ambient {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 38%;
+  height: 58%;
+  background: radial-gradient(circle at 25% 72%, rgba(0, 0, 0, 0.28), transparent 58%);
+  opacity: 0;
+  transition: opacity 300ms ease;
+  pointer-events: none;
+}
+
+.ambient.active { opacity: 1; }
+
+.toast-card {
+  position: absolute;
+  left: 14px;
+  bottom: 54px;
+  width: 306px;
+  min-height: 76px;
+  z-index: 70;
+  display: grid;
+  grid-template-columns: 1fr 58px;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 12px 12px 14px;
+  border-radius: 16px;
+  background: rgba(47, 48, 54, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(16px) saturate(1.08);
+  overflow: hidden;
+  opacity: 0;
+  transform: translate3d(-36px, 22px, 0) scale(0.98);
+  pointer-events: none;
+  transition: opacity 280ms ease, transform 360ms cubic-bezier(.2,.82,.2,1);
+}
+
+.toast-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.16), transparent);
+}
+
+.toast-card::after {
+  content: "";
+  position: absolute;
+  left: 18px;
+  top: 20px;
+  width: 38px;
+  height: 38px;
+  border-radius: 14px;
+  background: rgba(24, 127, 255, 0.28);
+  filter: blur(12px);
+  pointer-events: none;
+}
+
+.toast-card.active {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
+  pointer-events: auto;
+}
+
+.toast-main {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  min-height: 48px;
+  padding-left: 44px;
+}
+
+.brand-line {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 32px;
+  height: 32px;
+  transform: translateY(-50%);
+  color: transparent;
+  font-size: 0;
+}
+
+.brand-mark {
+  display: block;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  box-shadow: 0 10px 22px rgba(24, 127, 255, 0.34);
+}
+
+.toast-title {
+  font-size: 13.5px;
+  line-height: 1.22;
+  font-weight: 760;
+  color: #fff;
+  letter-spacing: 0;
+}
+
+.toast-sub {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 10.5px;
+  line-height: 1.25;
+}
+
+.toast-meta {
+  display: none;
+  flex-wrap: wrap;
+  gap: 6px;
+  color: #35627d;
+  font-size: 11px;
+  font-weight: 620;
+}
+
+.toast-meta span {
+  min-height: 20px;
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(22, 119, 255, 0.09);
+  border: 1px solid rgba(22, 119, 255, 0.08);
+}
+
+.toast-action {
+  position: relative;
+  z-index: 1;
+  align-self: center;
+  width: 58px;
+  height: 40px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 760;
+  transition: transform 120ms ease, background 160ms ease;
+}
+
+.toast-action:active { transform: scale(0.96); }
+
+.pay-card .toast-action {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.14);
+  box-shadow: none;
+}
+
+.app-stage {
+  position: absolute;
+  top: 52px;
+  right: 18px;
+  bottom: 58px;
+  width: 628px;
+  z-index: 50;
+  border-radius: 12px;
+  overflow: hidden;
+  background: transparent;
+  box-shadow: none;
+  opacity: 0;
+  transform: translate3d(24px, 0, 0) scale(0.985);
+  pointer-events: none;
+  transition: opacity 300ms ease, transform 380ms cubic-bezier(.2,.82,.2,1);
+}
+
+.app-stage.active {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
+  pointer-events: auto;
+}
+
+.app-stage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-image: var(--app-image);
+  background-size: var(--app-size, 160% auto);
+  background-position: var(--app-pos, 92% 48%);
+  background-repeat: no-repeat;
+  opacity: 0;
+  transition: opacity 360ms ease;
+}
+
+.app-stage.app-home::before,
+.app-stage.home-page::before,
+.app-stage.order-page::before {
+  opacity: 1;
+}
+
+.app-stage.use-full-state::before {
+  opacity: 0 !important;
+}
+
+.app-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: rgba(5, 12, 26, 0.12);
+  opacity: 0;
+  transition: opacity 240ms ease;
+}
+
+.order-page .app-scrim { opacity: 0; }
+.payment-modal-open .app-scrim { opacity: 0.18; }
+
+.app-topbar {
+  position: relative;
+  z-index: 3;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 18px;
+  background: rgba(255, 255, 255, 0.72);
+  border-bottom: 1px solid rgba(30, 48, 72, 0.08);
+  backdrop-filter: blur(12px);
+}
+
+.app-stage .app-topbar,
+.app-stage .mini-card {
+  display: none;
+}
+
+.app-logo {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  display: grid;
+  place-items: center;
+  background: var(--alipay);
+  color: white;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.app-title {
+  font-size: 14px;
+  color: #253040;
+  font-weight: 700;
+}
+
+.app-status {
+  margin-left: auto;
+  color: #7c8796;
+  font-size: 11px;
+}
+
+.home-pay-cta {
+  position: absolute;
+  z-index: 4;
+  top: 74px;
+  left: 206px;
+  width: 76px;
+  height: 34px;
+  border-radius: 15px;
+  color: transparent;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 760;
+  box-shadow: none;
+  opacity: 0;
+  transform: scale(0.98);
+  pointer-events: none;
+  transition: opacity 220ms ease, transform 160ms ease;
+}
+
+.home-page .home-pay-cta {
+  opacity: 0;
+}
+
+.home-page.home-click .home-pay-cta {
+  opacity: 1;
+  background: rgba(0, 70, 180, 0.22);
+  box-shadow: 0 0 0 8px rgba(22, 119, 255, 0.12);
+  transform: scale(0.88);
+  filter: brightness(0.92);
+}
+
+.order-pay-hotspot {
+  position: absolute;
+  z-index: 6;
+  left: 30px;
+  bottom: 30px;
+  width: 258px;
+  height: 44px;
+  border-radius: 22px;
+  background: transparent;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.order-page .order-pay-hotspot {
+  pointer-events: auto;
+}
+
+.order-pay-hotspot:active {
+  opacity: 1;
+  background: rgba(22, 119, 255, 0.16);
+}
+
+.mini-card {
+  position: absolute;
+  z-index: 4;
+  top: 72px;
+  left: 32px;
+  width: 318px;
+  padding: 20px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 18px 56px rgba(29, 52, 85, 0.18);
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 260ms ease, transform 320ms cubic-bezier(.2,.82,.2,1);
+}
+
+.order-page .mini-card,
+.payment-modal-open .mini-card {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.mini-eyebrow {
+  color: var(--alipay);
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.mini-title {
+  font-size: 22px;
+  font-weight: 760;
+  color: #202833;
+  margin-bottom: 16px;
+}
+
+.fee-line {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  padding-bottom: 14px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid #edf0f4;
+}
+
+.fee-sign {
+  padding-bottom: 6px;
+  color: #111827;
+  font-size: 18px;
+  font-weight: 650;
+}
+
+.fee-num {
+  color: #111827;
+  font-size: 48px;
+  line-height: 0.96;
+  font-weight: 780;
+}
+
+.fee-decimal {
+  padding-bottom: 7px;
+  color: #111827;
+  font-size: 22px;
+  font-weight: 720;
+}
+
+.info-list {
+  display: grid;
+  gap: 9px;
+  margin-bottom: 18px;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  color: #778190;
+  font-size: 12px;
+}
+
+.info-row strong {
+  color: #263241;
+  font-weight: 650;
+}
+
+.pay-button {
+  width: 100%;
+  height: 44px;
+  border-radius: 22px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--alipay), var(--alipay-deep));
+  font-size: 15px;
+  font-weight: 760;
+  box-shadow: 0 12px 28px rgba(22, 119, 255, 0.28);
+  transition: transform 120ms ease, filter 160ms ease;
+}
+
+.pay-button:active { transform: scale(0.98); }
+
+.pay-button[disabled] {
+  cursor: default;
+  filter: grayscale(0.12) brightness(0.95);
+}
+
+.pay-note {
+  margin-top: 10px;
+  text-align: center;
+  color: #8b95a3;
+  font-size: 11px;
+}
+
+.payment-modal {
+  position: absolute;
+  z-index: 8;
+  top: 96px;
+  left: 52px;
+  width: 224px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 24px 60px rgba(31, 48, 75, 0.28), 0 0 0 1px rgba(255,255,255,0.6) inset;
+  opacity: 0;
+  transform: translateY(12px) scale(0.97);
+  pointer-events: none;
+  transition: opacity 260ms ease, transform 320ms ease;
+  overflow: hidden;
+}
+
+.payment-modal.active {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+/* ─── Modal states ─── */
+.modal-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 28px 20px 24px;
+  min-height: 180px;
+}
+
+/* Confirm state */
+.confirm-state {
+  gap: 0;
+  position: relative;
+}
+
+.confirm-amount {
+  display: flex;
+  align-items: baseline;
+  gap: 1px;
+  color: #1a1a1a;
+  margin-bottom: 6px;
+}
+
+.confirm-yen {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.confirm-num {
+  font-size: 42px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -1px;
+}
+
+.confirm-decimal {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.confirm-label {
+  font-size: 12px;
+  color: #8c8c8c;
+  margin-bottom: 20px;
+  font-weight: 400;
+}
+
+.confirm-btn {
+  width: 100%;
+  height: 44px;
+  border-radius: 22px;
+  background: linear-gradient(135deg, #00aaff 0%, #0077ff 100%);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  box-shadow: 0 4px 16px rgba(0, 119, 255, 0.4);
+  transition: box-shadow 160ms ease, transform 120ms ease;
+}
+
+.confirm-btn:active {
+  transform: scale(0.97);
+  box-shadow: 0 2px 8px rgba(0, 119, 255, 0.3);
+}
+
+/* Success icon inside confirm panel */
+.success-icon {
+  display: none;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #00d68f 0%, #00a870 100%);
+  margin-bottom: 12px;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(0, 200, 120, 0.4);
+}
+
+.success-icon::after {
+  content: '';
+  display: block;
+  width: 14px;
+  height: 8px;
+  border-left: 2.5px solid #fff;
+  border-bottom: 2.5px solid #fff;
+  transform: rotate(-45deg) translateY(-2px);
+}
+
+.payment-modal.modal-success .confirm-state .confirm-amount,
+.payment-modal.modal-success .confirm-state .confirm-label {
+  display: none;
+}
+
+.payment-modal.modal-success .confirm-state .success-icon {
+  display: flex;
+}
+
+.success-text {
+  display: none;
+  font-size: 16px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 4px;
+}
+
+.success-sub {
+  display: none;
+  font-size: 11px;
+  color: #8c8c8c;
+}
+
+.payment-modal.modal-success .confirm-state .success-text,
+.payment-modal.modal-success .confirm-state .success-sub {
+  display: block;
+}
+
+/* Paying state */
+.paying-state {
+  gap: 14px;
+  display: none;
+}
+
+#resultPanel.showing {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 28px 20px 24px;
+  min-height: 180px;
+}
+
+.paying-ring {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 3px solid rgba(0, 119, 255, 0.15);
+  border-top-color: #0077ff;
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.paying-text {
+  font-size: 13px;
+  color: #8c8c8c;
+  font-weight: 500;
+}
+
+/* Success state */
+.payment-modal.modal-success .paying-state {
+  display: none;
+}
+
+.payment-modal.modal-success .confirm-state {
+  display: flex;
+}
+
+.payment-modal.modal-success .confirm-btn {
+  display: none;
+}
+
+.controls {
+  display: flex;
+  gap: 10px;
+  margin-top: -20px;
+  transform: scale(0.9);
+}
+
+.control-btn {
+  height: 36px;
+  min-width: 96px;
+  padding: 0 16px;
+  border-radius: 18px;
+  color: #d7dce5;
+  background: #22262d;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.screen .scene-chip,
+.screen .timeline {
+  display: none;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 980px) {
+  .screen { transform: scale(calc((100vw - 24px) / 960)); }
+  .prototype-shell { height: 100vh; align-content: center; overflow: hidden; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    transition-duration: 1ms !important;
+  }
+}
+</style>
+</head>
+<body>
+<main class="prototype-shell">
+  <section class="screen" id="screen" aria-label="支付宝停车助手车机交互原型">
+    <img class="screen-bg" src="../图1：车机大屏背景图.jpg" alt="车机大屏背景">
+    <img class="screen-state-bg" id="screenStateBg" alt="">
+    <div class="content">
+      <div class="timeline" aria-hidden="true">
+        <span class="dot active" id="dot0"></span>
+        <span class="dot" id="dot1"></span>
+        <span class="dot" id="dot2"></span>
+        <span class="dot" id="dot3"></span>
+      </div>
+      <div class="scene-chip" id="sceneChip">入场通知</div>
+      <div class="ambient" id="ambient"></div>
+
+      <article class="toast-card" id="entryToast">
+        <div class="toast-main">
+          <div class="brand-line"><img class="brand-mark" src="./alipay-logo.png" alt="支付宝"></div>
+          <h2 class="toast-title">预计11:20开始计费</h2>
+          <p class="toast-sub">A空间停车场空间停车场空间停车… 已停5分钟</p>
+          <div class="toast-meta"><span>入场成功</span><span>免费停 15 分钟</span></div>
+        </div>
+        <button class="toast-action" type="button" onclick="hideEntryAndWaitForTap()">去查看</button>
+      </article>
+
+      <article class="toast-card pay-card" id="payToast">
+        <div class="toast-main">
+          <div class="brand-line"><img class="brand-mark" src="./alipay-logo.png" alt="支付宝"></div>
+          <h2 class="toast-title">预估当前费用 16元</h2>
+          <p class="toast-sub">A空间停车场 已停2小时30分钟</p>
+          <div class="toast-meta"><span>场中计费</span><span>行驶前可先完成支付</span></div>
+        </div>
+        <button class="toast-action" type="button" onclick="openAlipay()">去支付</button>
+      </article>
+
+      <section class="app-stage" id="appStage" aria-label="支付宝应用区域">
+        <div class="app-scrim"></div>
+        <button class="home-pay-cta" id="homePayCta" type="button" disabled>去支付</button>
+        <button class="order-pay-hotspot" id="orderPayHotspot" type="button" onclick="openPasswordlessModal()" aria-label="去支付"></button>
+        <div class="app-topbar">
+          <div class="app-logo">支</div>
+          <div class="app-title" id="appTitle">支付宝</div>
+          <div class="app-status" id="appStatus">车载应用</div>
+        </div>
+
+        <div class="mini-card">
+          <div class="mini-eyebrow">停车缴费小程序</div>
+          <h2 class="mini-title" id="miniTitle">确认停车订单</h2>
+          <div class="fee-line">
+            <span class="fee-sign">¥</span>
+            <span class="fee-num">20</span>
+            <span class="fee-decimal">.00</span>
+          </div>
+          <div class="info-list">
+            <div class="info-row"><span>停车场</span><strong>A空间停车场</strong></div>
+            <div class="info-row"><span>停车时长</span><strong>2小时30分钟</strong></div>
+            <div class="info-row"><span>入场时间</span><strong>09:48</strong></div>
+            <div class="info-row"><span>车牌号码</span><strong>津A·8P26</strong></div>
+          </div>
+          <button class="pay-button" id="payButton" type="button" onclick="openPasswordlessModal()">去支付</button>
+          <div class="pay-note" id="payNote">已开通支付宝停车免密服务</div>
+        </div>
+
+        <aside class="payment-modal" id="paymentModal" aria-live="polite">
+          <div id="confirmPanel" class="modal-state confirm-state">
+            <div class="success-icon"></div>
+            <div class="success-text">支付成功</div>
+            <div class="success-sub">15分钟内免费离场</div>
+            <div class="confirm-amount">
+              <span class="confirm-yen">¥</span>
+              <span class="confirm-num">20</span>
+              <span class="confirm-decimal">.00</span>
+            </div>
+            <p class="confirm-label">停车费</p>
+            <button class="confirm-btn" type="button" onclick="confirmPasswordless()">确认免密支付</button>
+          </div>
+          <div id="resultPanel" class="modal-state paying-state">
+            <div class="paying-ring"></div>
+            <p class="paying-text">支付中</p>
+          </div>
+        </aside>
+      </section>
+    </div>
+  </section>
+
+  <div class="controls" aria-label="演示控制">
+    <button class="control-btn" type="button" onclick="previousStep()">上一步</button>
+    <button class="control-btn" type="button" onclick="resetDemo()">重播</button>
+    <button class="control-btn" type="button" onclick="nextStep()">下一步</button>
+  </div>
+</main>
+
+<script>
+const steps = ['入场通知', '离场缴费', '打开支付宝', '完成支付'];
+const appStage = document.getElementById('appStage');
+const entryToast = document.getElementById('entryToast');
+const payToast = document.getElementById('payToast');
+const ambient = document.getElementById('ambient');
+const screenStateBg = document.getElementById('screenStateBg');
+const appTitle = document.getElementById('appTitle');
+const appStatus = document.getElementById('appStatus');
+const miniTitle = document.getElementById('miniTitle');
+const payButton = document.getElementById('payButton');
+const payNote = document.getElementById('payNote');
+const paymentModal = document.getElementById('paymentModal');
+const confirmPanel = document.getElementById('confirmPanel');
+const resultPanel = document.getElementById('resultPanel');
+let currentStep = 0;
+let autoTimer = null;
+let waitingForLeavePrompt = false;
+let paymentFlowTimer = null;
+let demoStage = 'entry';
+let paymentRunId = 0;
+
+appStage.style.setProperty('--app-image', 'url("../image.png")');
+appStage.style.setProperty('--app-size', '160% auto');
+appStage.style.setProperty('--app-pos', '92% 48%');
+
+const pencilStateImages = {
+  home: './pencil-assets/pencil-home.png',
+  order: './pencil-assets/pencil-order.png',
+  confirm: './pencil-assets/pencil-confirm.png',
+  paying: './pencil-assets/pencil-paying.png',
+  success: './pencil-assets/pencil-success.png'
+};
+
+function showPencilState(name) {
+  screenStateBg.src = pencilStateImages[name];
+  screenStateBg.classList.add('active');
+}
+
+function hidePencilState() {
+  screenStateBg.classList.remove('active');
+  screenStateBg.removeAttribute('src');
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function setStep(index) {
+  currentStep = index;
+  document.getElementById('sceneChip').textContent = steps[index];
+  document.querySelectorAll('.dot').forEach((dot, dotIndex) => {
+    dot.classList.toggle('active', dotIndex === index);
+  });
+}
+
+function clearAutoTimer() {
+  if (autoTimer) {
+    clearTimeout(autoTimer);
+    autoTimer = null;
+  }
+  if (paymentFlowTimer) {
+    clearTimeout(paymentFlowTimer);
+    paymentFlowTimer = null;
+  }
+}
+
+function resetVisualState() {
+  clearAutoTimer();
+  paymentRunId++;
+  demoStage = 'idle';
+  hidePencilState();
+  waitingForLeavePrompt = false;
+  entryToast.classList.remove('active');
+  payToast.classList.remove('active');
+  ambient.classList.remove('active');
+  appStage.className = 'app-stage';
+  appStage.style.setProperty('--app-image', 'url("../image.png")');
+  appStage.style.setProperty('--app-size', '160% auto');
+  appStage.style.setProperty('--app-pos', '92% 48%');
+  appTitle.textContent = '支付宝';
+  appStatus.textContent = '车载应用';
+  miniTitle.textContent = '确认停车订单';
+  payButton.textContent = '去支付';
+  payButton.disabled = false;
+  payNote.textContent = '已开通支付宝停车免密服务';
+  paymentModal.className = 'payment-modal';
+  confirmPanel.hidden = false;
+  resultPanel.classList.remove('showing');
+}
+
+async function showEntryToast() {
+  resetVisualState();
+  demoStage = 'entry';
+  setStep(0);
+  await sleep(260);
+  ambient.classList.add('active');
+  entryToast.classList.add('active');
+  autoTimer = setTimeout(hideEntryAndWaitForTap, 5000);
+}
+
+function hideEntryAndWaitForTap() {
+  clearAutoTimer();
+  demoStage = 'waitingForTap';
+  entryToast.classList.remove('active');
+  ambient.classList.remove('active');
+  waitingForLeavePrompt = true;
+}
+
+async function showPayToast() {
+  clearAutoTimer();
+  paymentRunId++;
+  demoStage = 'payToast';
+  hidePencilState();
+  waitingForLeavePrompt = false;
+  appStage.className = 'app-stage';
+  appStage.style.setProperty('--app-image', 'url("../image.png")');
+  appStage.style.setProperty('--app-size', '160% auto');
+  appStage.style.setProperty('--app-pos', '92% 48%');
+  appTitle.textContent = '支付宝';
+  appStatus.textContent = '车载应用';
+  payButton.disabled = false;
+  paymentModal.className = 'payment-modal';
+  confirmPanel.hidden = false;
+  resultPanel.classList.remove('showing');
+  setStep(1);
+  entryToast.classList.remove('active');
+  ambient.classList.add('active');
+  await sleep(260);
+  payToast.classList.add('active');
+}
+
+async function openAlipay() {
+  clearAutoTimer();
+  paymentRunId++;
+  demoStage = 'home';
+  setStep(2);
+  payToast.classList.remove('active');
+  ambient.classList.remove('active');
+  await sleep(180);
+  showPencilState('home');
+  appStage.style.setProperty('--app-image', 'url("../image.png")');
+  appStage.style.setProperty('--app-size', '160% auto');
+  appStage.style.setProperty('--app-pos', '92% 48%');
+  appStage.classList.add('active', 'home-page', 'use-full-state');
+  appTitle.textContent = '支付宝';
+  appStatus.textContent = '支付宝车载助手';
+  paymentFlowTimer = setTimeout(async () => {
+    appStage.classList.add('home-click');
+    await sleep(260);
+    appStage.classList.remove('home-page', 'home-click');
+    showOrderPage();
+  }, 1800);
+}
+
+function showOrderPage() {
+  clearAutoTimer();
+  paymentRunId++;
+  demoStage = 'order';
+  setStep(2);
+  showPencilState('order');
+  appStage.style.setProperty('--app-image', 'url("../image-1.png")');
+  appStage.style.setProperty('--app-size', '156% auto');
+  appStage.style.setProperty('--app-pos', '92% 50%');
+  appStage.classList.remove('home-page', 'home-click', 'payment-modal-open');
+  appStage.classList.add('active', 'order-page', 'use-full-state');
+  appTitle.textContent = '停车缴费';
+  appStatus.textContent = '支付宝小程序';
+  payButton.disabled = false;
+  paymentModal.className = 'payment-modal';
+  confirmPanel.hidden = false;
+  resultPanel.classList.remove('showing');
+}
+function openPasswordlessModal() {
+  paymentRunId++;
+  demoStage = 'confirm';
+  setStep(3);
+  appStage.classList.add('payment-modal-open');
+  paymentModal.className = 'payment-modal active';
+  confirmPanel.hidden = false;
+  resultPanel.classList.remove('showing');
+  payButton.disabled = true;
+  appStatus.textContent = '等待确认';
+}
+
+async function confirmPasswordless() {
+  const runId = ++paymentRunId;
+  demoStage = 'paying';
+  setStep(3);
+  confirmPanel.hidden = true;
+  resultPanel.classList.add('showing');
+  paymentModal.classList.remove('modal-success');
+  payNote.textContent = '免密支付授权校验中';
+  appStatus.textContent = '扣款中';
+  await sleep(2000);
+  if (runId !== paymentRunId) return;
+  demoStage = 'success';
+  resultPanel.classList.remove('showing');
+  confirmPanel.hidden = false;
+  paymentModal.classList.add('modal-success');
+  payNote.textContent = '停车场已收到支付结果';
+  appStatus.textContent = '支付成功';
+}
+
+function nextStep() {
+  if (demoStage === 'entry') {
+    hideEntryAndWaitForTap();
+  } else if (demoStage === 'waitingForTap') {
+    showPayToast();
+  } else if (demoStage === 'payToast') {
+    openAlipay();
+  } else if (demoStage === 'home') {
+    showOrderPage();
+  } else if (demoStage === 'order') {
+    openPasswordlessModal();
+  } else if (demoStage === 'confirm') {
+    confirmPasswordless();
+  } else {
+    resetDemo();
+  }
+}
+
+function previousStep() {
+  clearAutoTimer();
+  paymentRunId++;
+
+  if (demoStage === 'success' || demoStage === 'paying') {
+    openPasswordlessModal();
+  } else if (demoStage === 'confirm') {
+    showOrderPage();
+  } else if (demoStage === 'order') {
+    setStep(2);
+    demoStage = 'home';
+    showPencilState('home');
+    appStage.className = 'app-stage active home-page use-full-state';
+    appStage.style.setProperty('--app-image', 'url("../image.png")');
+    appStage.style.setProperty('--app-size', '160% auto');
+    appStage.style.setProperty('--app-pos', '92% 48%');
+    appTitle.textContent = '支付宝';
+    appStatus.textContent = '支付宝车载助手';
+    payButton.disabled = false;
+    paymentModal.className = 'payment-modal';
+    confirmPanel.hidden = false;
+    resultPanel.classList.remove('showing');
+  } else if (demoStage === 'home') {
+    showPayToast();
+  } else if (demoStage === 'payToast') {
+    hideEntryAndWaitForTap();
+  } else if (demoStage === 'waitingForTap') {
+    showEntryToast();
+  } else {
+    resetDemo();
+  }
+}
+
+function resetDemo() {
+  resetVisualState();
+  showEntryToast();
+}
+
+window.addEventListener('load', showEntryToast);
+
+document.getElementById('screen').addEventListener('click', event => {
+  if (!waitingForLeavePrompt) return;
+  if (event.target.closest('button')) return;
+  showPayToast();
+});
+</script>
+</body>
+</html>
