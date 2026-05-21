@@ -893,7 +893,7 @@ let paymentFlowTimer = null;
 let demoStage = 'entry';
 let paymentRunId = 0;
 
-appStage.style.setProperty('--app-image', 'url("../image.png")');
+appStage.style.setProperty('--app-image', 'url("./image.png")');
 appStage.style.setProperty('--app-size', '160% auto');
 appStage.style.setProperty('--app-pos', '92% 48%');
 
@@ -948,7 +948,7 @@ function resetVisualState() {
   payToast.classList.remove('active');
   ambient.classList.remove('active');
   appStage.className = 'app-stage';
-  appStage.style.setProperty('--app-image', 'url("../image.png")');
+  appStage.style.setProperty('--app-image', 'url("./image.png")');
   appStage.style.setProperty('--app-size', '160% auto');
   appStage.style.setProperty('--app-pos', '92% 48%');
   appTitle.textContent = '支付宝';
@@ -987,7 +987,7 @@ async function showPayToast() {
   hidePencilState();
   waitingForLeavePrompt = false;
   appStage.className = 'app-stage';
-  appStage.style.setProperty('--app-image', 'url("../image.png")');
+  appStage.style.setProperty('--app-image', 'url("./image.png")');
   appStage.style.setProperty('--app-size', '160% auto');
   appStage.style.setProperty('--app-pos', '92% 48%');
   appTitle.textContent = '支付宝';
@@ -1012,7 +1012,7 @@ async function openAlipay() {
   ambient.classList.remove('active');
   await sleep(180);
   showPencilState('home');
-  appStage.style.setProperty('--app-image', 'url("../image.png")');
+  appStage.style.setProperty('--app-image', 'url("./image.png")');
   appStage.style.setProperty('--app-size', '160% auto');
   appStage.style.setProperty('--app-pos', '92% 48%');
   appStage.classList.add('active', 'home-page', 'use-full-state');
@@ -1032,7 +1032,7 @@ function showOrderPage() {
   demoStage = 'order';
   setStep(2);
   showPencilState('order');
-  appStage.style.setProperty('--app-image', 'url("../image-1.png")');
+  appStage.style.setProperty('--app-image', 'url("./image-1.png")');
   appStage.style.setProperty('--app-size', '156% auto');
   appStage.style.setProperty('--app-pos', '92% 50%');
   appStage.classList.remove('home-page', 'home-click', 'payment-modal-open');
@@ -1106,7 +1106,7 @@ function previousStep() {
     demoStage = 'home';
     showPencilState('home');
     appStage.className = 'app-stage active home-page use-full-state';
-    appStage.style.setProperty('--app-image', 'url("../image.png")');
+    appStage.style.setProperty('--app-image', 'url("./image.png")');
     appStage.style.setProperty('--app-size', '160% auto');
     appStage.style.setProperty('--app-pos', '92% 48%');
     appTitle.textContent = '支付宝';
